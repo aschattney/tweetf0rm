@@ -4,16 +4,20 @@
 
 
 class NotImplemented(Exception):
-	pass
+    pass
+
 
 class MissingArgs(Exception):
-	pass
+    pass
+
 
 class WrongArgs(Exception):
-	pass
+    pass
+
 
 class InvalidConfig(Exception):
-	pass
+    pass
+
 
 class MaxRetryReached(Exception):
-	pass
+    pass

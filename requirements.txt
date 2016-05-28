@@ -1,3 +1,4 @@
+pymysql
 requests==2.5.3
 twython==3.2.0
 futures==2.2.0

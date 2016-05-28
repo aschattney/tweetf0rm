@@ -11,85 +11,83 @@ requests_log.setLevel(logging.DEBUG)
 
 from nose.tools import nottest
 
-import sys, os, json, exceptions
-sys.path.append("..")
+import sys
 
-from tweetf0rm.utils import full_stack
-from tweetf0rm.proxies import proxy_checker
+sys.path.append("..")
 
 import multiprocessing as mp
 
-from tweetf0rm.twitterapi.twitter_api import TwitterAPI
+from tweetf0rm import TwitterAPI
+
 
 class Handler(object):
+    def append(self, data, bucket=None, key=None):
+        logger.info(data)
+        pass
 
-	def append(self,data, bucket=None, key=None):
-		logger.info(data)
-		pass
 
 def call_user_api(apikeys, client_args):
+    twitter_api = TwitterAPI(apikeys=apikeys, client_args=client_args)
+    twitter_api.find_all_friend_ids(53039176, [Handler()])
 
-	twitter_api = TwitterAPI(apikeys=apikeys, client_args=client_args)
-	twitter_api.find_all_friend_ids(53039176, [Handler()])
 
-			
 class TestTwitterRateLimit:
+    @classmethod
+    def setup_class(cls):
+        pass
 
-	@classmethod
-	def setup_class(cls):
-		pass
+    @classmethod
+    def teardown_class(cls):
+        pass
 
-	@classmethod
-	def teardown_class(cls):
-		pass
+    def setup(self):
+        import os, json
+        # sys.path.append("..")
+        with open(os.path.abspath('rate_limit_test.json'), 'rb') as config_f, open(os.path.abspath('proxy.json'),
+                                                                                   'rb') as proxy_f:
+            self.config = json.load(config_f)
+            self.proxies = json.load(proxy_f)
 
-	def setup(self):
-		import sys, os, json
-		#sys.path.append("..")
-		with open(os.path.abspath('rate_limit_test.json'), 'rb') as config_f, open(os.path.abspath('proxy.json'), 'rb') as proxy_f:
-			self.config = json.load(config_f)
-			self.proxies = json.load(proxy_f)
+    def teardown(self):
+        pass
 
-	def teardown(self):
-		pass
+    @nottest
+    def test_china_proxy(self):
+        apikeys = self.config['apikeys']['i0mf0rmer13']
 
-	@nottest
-	def test_china_proxy(self):
-		apikeys = self.config['apikeys']['i0mf0rmer13']
-			
-		client_args = {
-			"timeout": 300,
-			"proxies": {'http':'203.156.207.249:8080'}#proxy_list[i]['proxy_dict']
-		}
+        client_args = {
+            "timeout": 300,
+            "proxies": {'http': '203.156.207.249:8080'}  # proxy_list[i]['proxy_dict']
+        }
 
-		call_user_api(apikeys, client_args)
+        call_user_api(apikeys, client_args)
+
+    @nottest
+    def test_rate_limit(self):
+        from tweetf0rm.proxies import proxy_checker
+
+        proxy_list = proxy_checker(self.proxies['proxies'])
+
+        ps = []
+        for i, twitter_user in enumerate(self.config['apikeys']):
+            apikeys = self.config['apikeys'][twitter_user]
+
+            client_args = {
+                "timeout": 300,
+                "proxies": {'http': '203.156.207.249:8080'}  # proxy_list[i]['proxy_dict']
+            }
+            logger.info(client_args)
+
+            p = mp.Process(target=call_user_api, args=(apikeys, client_args,))
+            ps.append(p)
+            p.start()
+
+        for p in ps:
+            p.join()
 
 
-	@nottest
-	def test_rate_limit(self):
-		from tweetf0rm.proxies import proxy_checker
+if __name__ == "__main__":
+    import nose
 
-		proxy_list = proxy_checker(self.proxies['proxies'])
-
-		ps = []
-		for i, twitter_user in enumerate(self.config['apikeys']):
-			apikeys = self.config['apikeys'][twitter_user]
-			
-
-			client_args = {
-				"timeout": 300,
-				"proxies": {'http':'203.156.207.249:8080'}#proxy_list[i]['proxy_dict']
-			}
-			logger.info(client_args)
-
-			p = mp.Process(target=call_user_api, args=(apikeys, client_args, ))
-			ps.append(p)
-			p.start()
-
-		for p in ps:
-			p.join()
-
-if __name__=="__main__":
-	import nose
-	#nose.main()
-	result = nose.run(TestTwitterRateLimit)
+    # nose.main()
+    result = nose.run(TestTwitterRateLimit)

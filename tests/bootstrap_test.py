@@ -11,12 +11,12 @@ requests_log.setLevel(logging.WARNING)
 
 from nose.tools import nottest
 
-import sys, os, json, exceptions, time
+import sys, time
 sys.path.append("..")
 
-from tweetf0rm.utils import full_stack, hash_cmd, md5, get_keys_by_min_value
+from tweetf0rm.utils import get_keys_by_min_value
 from tweetf0rm.proxies import proxy_checker
-from tweetf0rm.redis_helper import NodeCoordinator, NodeQueue
+from tweetf0rm.redis_helper import NodeQueue
 
 class TestBootstrap:
 
@@ -29,7 +29,7 @@ class TestBootstrap:
 		pass
 
 	def setup(self):
-		import sys, os, json
+		import os, json
 		#sys.path.append("..")
 		with open(os.path.abspath('../config.json'), 'rb') as config_f, open(os.path.abspath('proxies.json'), 'rb') as proxy_f:
 			self.config = json.load(config_f)
@@ -40,8 +40,7 @@ class TestBootstrap:
 
 	#@nottest
 	def test_search(self):
-		from tweetf0rm.twitterapi.twitter_api import TwitterAPI
-		from tweetf0rm.handler.inmemory_handler import InMemoryHandler
+		from tweetf0rm import TwitterAPI
 
 		apikeys = self.config["apikeys"]["i0mf0rmer03"]
 		
@@ -104,8 +103,7 @@ class TestBootstrap:
 
 	@nottest
 	def test_get_user_id(self):
-		from tweetf0rm.twitterapi.twitter_api import TwitterAPI
-		from tweetf0rm.handler.inmemory_handler import InMemoryHandler
+		from tweetf0rm import TwitterAPI
 
 		apikeys = self.config["apikeys"]["i0mf0rmer03"]
 		
