@@ -2,15 +2,13 @@
 # -*- coding: utf-8 -*-
 #
 import logging
-
+from multiprocessing import Process
+from redis_helper import CrawlerQueue
 logger = logging.getLogger(__name__)
 
-import multiprocessing as mp
-from redis_helper import CrawlerQueue
-
-
 # MAX_QUEUE_SIZE = 32767
-class CrawlerProcess(mp.Process):
+class CrawlerProcess(Process):
+
     def __init__(self, node_id, crawler_id, redis_config, handlers):
         super(CrawlerProcess, self).__init__()
         self.node_id = node_id

@@ -65,24 +65,9 @@ class Scheduler(object):
         logger.info("number of crawlers: %d created" % number_of_processes)
 
     def new_crawler(self, node_id, apikeys, config, crawler_proxies=None):
-        mysql_config = {
-            "name": "MySQLHandler",
-            "args": {
-                "host": 'localhost',
-                "port": 3306,
-                "user": "root",
-                "password": "",
-                "db": "twitter_crawler",
-                "charset": "utf8mb4"
-            }
-        }
-        file_handler_config = {
-            "name": "FileHandler",
-            "args": {
-                "output_folder": config["output"]
-            }
-        }
-        handler_configs = [file_handler_config, mysql_config]
+        mysql_config = config['mysql_config']
+        logger.info("got mysql_config")
+        handler_configs = [mysql_config]
         crawler_id = apikeys['app_key']
         logger.debug('creating a new crawler: %s' % crawler_id)
         if not crawler_proxies:
@@ -104,6 +89,7 @@ class Scheduler(object):
             'crawler_queue': CrawlerQueue(self.node_id, crawler_id, redis_config=copy.copy(config['redis_config'])),
             'crawler_proxies': crawler_proxies
         }
+        logger.info("before starting crawler")
         crawler.start()
 
     def is_alive(self):

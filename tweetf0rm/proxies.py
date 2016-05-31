@@ -26,7 +26,7 @@ def check_proxy(proxy, timeout):
         s = requests.Session()
         r = s.get(url, headers=headers, proxies=p['proxy_dict'], timeout=timeout, allow_redirects=True)
 
-        if (r.status_code == requests.codes.ok):
+        if r.status_code == requests.codes.ok:
             return True, p
         else:
             return False, None

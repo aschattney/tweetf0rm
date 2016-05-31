@@ -1,8 +1,8 @@
 import sys
 import os
 
-words = ['verafake']
+word = '"youtube or youtu.be"'
 
-for word in words:
-    bash_command = 'sh client.sh  -c config.json -cmd SEARCH -q ' + word
-    os.system(bash_command)
+
+bash_command = 'sh client.sh  -c config.json -cmd SEARCH -q ' + word
+os.system(bash_command)

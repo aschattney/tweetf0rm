@@ -7,10 +7,13 @@ from twitter_api import TwitterAPI
 from crawl_user_relationship_command_handler import CrawlUserRelationshipCommandHandler
 from errors import MissingArgs
 from redis_helper import NodeQueue
+from streaming_api import Streamer
+from utils import node_id
 import copy
 import json
 
 logger = logging.getLogger(__name__)
+
 
 class TwitterCrawler(CrawlerProcess):
     def __init__(self, node_id, crawler_id, apikeys, handlers, redis_config, proxies=None):
@@ -34,7 +37,9 @@ class TwitterCrawler(CrawlerProcess):
             },
             "CRAWL_USER_TIMELINE": "fetch_user_timeline",
             "CRAWL_TWEET": "fetch_tweet_by_id",
-            "SEARCH": "search_by_query"
+            "SEARCH": "search_by_query",
+            "CRAWL_USER": "fetch_user_by_id",
+            "CRAWL_GEO": "fetch_geo_by_id"
         }
         self.node_queue = NodeQueue(self.node_id, redis_config=redis_config)
         self.client_args = {"timeout": 300}
@@ -66,6 +71,9 @@ class TwitterCrawler(CrawlerProcess):
         return self.tasks.keys()
 
     def run(self):
+
+        node_queue = NodeQueue(node_id=node_id(),redis_config=self.redis_config)
+
         while True:
             # cmd is in json format
             # cmd = {
@@ -73,13 +81,14 @@ class TwitterCrawler(CrawlerProcess):
             #	user_id: id,
             #	data_type: 'ids' # users
             # }
+
+            logger.info("fetching command ...")
+
             cmd = self.get_cmd()
 
             command = cmd['cmd']
 
-            logger.debug("new cmd: %s" % cmd)
-
-            redis_cmd_handler = None
+            logger.info("new cmd: %s" % cmd)
 
             # maybe change this to a map will be less expressive,
             #  and easier to read... but well, not too many cases here yet...
@@ -106,8 +115,21 @@ class TwitterCrawler(CrawlerProcess):
                         "write_to_handlers": self.handlers,
                         "cmd_handlers": []
                     }
-                elif command == 'USER':
+                elif command == 'CRAWL_USER':
                     args = {
+                        "user_id": cmd["user_id"],
+                        "write_to_handlers": self.handlers,
+                        "cmd_handlers": []
+                    }
+                elif command == 'CRAWL_GEO':
+                    args = {
+                        "place_id": cmd['geo_id'],
+                        "write_to_handlers": self.handlers,
+                        "cmd_handlers": []
+                    }
+                elif command == 'STREAM_TWEETS':
+                    args = {
+                        "query": cmd['query'],
                         "write_to_handlers": self.handlers,
                         "cmd_handlers": []
                     }
@@ -142,7 +164,10 @@ class TwitterCrawler(CrawlerProcess):
                     if "query" in cmd:
                         args['query'] = cmd['query']
                         func = getattr(self.twitter_api, self.tasks[command])
-
+                elif command in ['CRAWL_USER']:
+                    func = getattr(self.twitter_api, self.tasks[command])
+                elif command in ['CRAWL_GEO']:
+                    func = getattr(self.twitter_api, self.tasks[command])
                 elif command in ['CRAWL_FRIENDS', 'CRAWL_FOLLOWERS']:
                     data_type = cmd['data_type']
 
@@ -171,7 +196,18 @@ class TwitterCrawler(CrawlerProcess):
 
                     func = getattr(self.twitter_api, self.tasks[command][data_type])
 
-                if func:
+                if command == "STREAM_TWEETS":
+                    streamer = Streamer(apikeys=self.apikeys, client_args=self.client_args,
+                                        write_to_handlers=self.handlers)
+                    try:
+                        logger.info(args)
+                        streamer.statuses.filter(track=args['query'])
+                    except Exception as e:
+                        if str(e).find("IncompleteRead") != -1:
+                            streamer.close()
+                            node_queue.put(cmd)
+
+                elif func:
                     try:
                         # logger.info(args)
                         func(**args)

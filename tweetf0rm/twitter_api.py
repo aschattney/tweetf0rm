@@ -9,6 +9,7 @@ import logging
 import time
 import json
 import sys
+
 print sys.path
 from twython import Twython
 from twython.exceptions import TwythonError, TwythonRateLimitError
@@ -35,12 +36,13 @@ class TwitterAPI(Twython):
         self.apikeys = copy.copy(apikeys)  # keep a copy
         # self.crawler_id = kwargs.pop('crawler_id', None)
 
-        oauth2 = kwargs.pop('oauth2', True)  # default to use oauth2 (application level access, read-only)
+        oauth2 = kwargs.pop('oauth2', False)  # default to use oauth2 (application level access, read-only)
 
         if oauth2:
-            apikeys.pop('oauth_token')
-            apikeys.pop('oauth_token_secret')
-            twitter = Twython(apikeys['app_key'], apikeys['app_secret'], oauth_version=2)
+            # apikeys.pop('oauth_token')
+            # apikeys.pop('oauth_token_secret')
+            twitter = Twython(apikeys['app_key'], apikeys['app_secret'], apikeys['oauth_token'],
+                              apikeys['oauth_token_secret'], oauth_version=1)
             access_token = twitter.obtain_access_token()
             kwargs['access_token'] = access_token
             apikeys.pop('app_secret')
@@ -264,7 +266,7 @@ class TwitterAPI(Twython):
                 tweet = self.show_status(id=tweet_id)
 
                 # logger.debug('%d > %d ? %s'%(prev_max_id, current_max_id, bool(prev_max_id > current_max_id)))
-                logger.info("Fetched tweet [%s]" % (tweet_id))
+                logger.info("Fetched tweet [%s]" % tweet_id)
 
                 break
 
@@ -320,6 +322,46 @@ class TwitterAPI(Twython):
 
         return users
 
+    def fetch_user_by_id(self, user_id=None, write_to_handlers=[], cmd_handlers=[], bucket="users"):
+        retry_cnt = MAX_RETRY_CNT
+        while retry_cnt > 0:
+            if not user_id:
+                raise Exception("fetch_user_by_id: user_id is None")
+            try:
+                user = self.show_user(user_id=user_id)
+                if user is not None:
+                    for handler in write_to_handlers:
+                        handler.append(json.dumps(user), bucket, key=user_id)
+                break
+            except TwythonRateLimitError:
+                self.rate_limit_error_occured('users', '/users/show/:id')
+            except Exception as exc:
+                time.sleep(10)
+                logger.info("exception: %s" % exc)
+                retry_cnt -= 1
+                if retry_cnt == 0:
+                    raise MaxRetryReached("max retry reached due to %s" % exc)
+
+    def fetch_geo_by_id(self, place_id=None, write_to_handlers=[], cmd_handlers=[], bucket="geos"):
+        retry_cnt = MAX_RETRY_CNT
+        while retry_cnt > 0:
+            if not place_id:
+                raise Exception("fetch_geo_by_id: place_id is None")
+            try:
+                user = self.get_geo_info(place_id=place_id)
+                if user is not None:
+                    for handler in write_to_handlers:
+                        handler.append(json.dumps(user), bucket, key=place_id)
+                break
+            except TwythonRateLimitError:
+                self.rate_limit_error_occured('geo', '/geo/id/:place_id')
+            except Exception as exc:
+                time.sleep(10)
+                logger.info("exception: %s" % exc)
+                retry_cnt -= 1
+                if retry_cnt == 0:
+                    raise MaxRetryReached("max retry reached due to %s" % exc)
+
     def search_by_query(self, query=None, geocode=None, lang=None, key=None, write_to_handlers=[], cmd_handlers=[],
                         bucket="tweets"):
 
@@ -336,14 +378,16 @@ class TwitterAPI(Twython):
         last_lowest_id = current_max_id  # used to workaround users who has less than 200 tweets, 1 loop is enough...
         cnt = 0
 
+        query += " filter:links"
+
         retry_cnt = MAX_RETRY_CNT
         result_tweets = []
         while current_max_id != prev_max_id and retry_cnt > 1:
             try:
                 if current_max_id > 0:
-                    tweets = self.search(q=query, geocode=geocode, lang=lang, max_id=current_max_id - 1, count=100)
+                    tweets = self.search(q=query, geocode=geocode, lang=lang, max_id=current_max_id - 1, count=500)
                 else:
-                    tweets = self.search(q=query, geocode=geocode, lang=lang, count=100)
+                    tweets = self.search(q=query, geocode=geocode, lang=lang, count=500)
 
                 prev_max_id = current_max_id  # if no new tweets are found, the prev_max_id will be the same as current_max_id
 
@@ -368,15 +412,17 @@ class TwitterAPI(Twython):
                 if len(result_tweets) > 0:
                     for tweet in result_tweets:
                         for handler in write_to_handlers:
+                            dumped_tweet = json.dumps(tweet)
+                            logger.info(dumped_tweet)
                             handler.append(json.dumps(tweet), bucket=bucket, key=key)
 
                         for handler in cmd_handlers:
                             handler.append(json.dumps(tweet), bucket=bucket, key=key)
-                else:
-                    for handler in write_to_handlers:
-                        handler.append(json.dumps({}), bucket=bucket, key=key)
+                            # else:
+                            # for handler in write_to_handlers:
+                            #   handler.append(json.dumps({}), bucket=bucket, key=key)
                 result_tweets = []
-
+                break
             except TwythonRateLimitError:
                 self.rate_limit_error_occured('search', '/search/tweets')
             except Exception as exc:

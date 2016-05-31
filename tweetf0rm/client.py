@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+
 sys.path.insert(0, "D:\\Anaconda3\\envs\\python2.7\\Lib\\site-packages")
 import argparse
 import copy
@@ -107,10 +108,6 @@ avaliable_cmds = {
         'bucket': {
             'value': 'timelines'
         }
-    }, 'GET_UIDS_FROM_SCREEN_NAMES': {
-
-    }, 'GET_USERS_FROM_IDS': {
-
     }, 'LIST_NODES': {
 
     }, 'SHUTDOWN_NODE': {
@@ -123,6 +120,13 @@ avaliable_cmds = {
         'query': {
             'value': None,
             'validation': lambda x: x is not None
+        },
+        'bucket': {
+            'value': 'tweets'
+        }
+    }, 'STREAM_TWEETS': {
+        'query': {
+            'value': None
         },
         'bucket': {
             'value': 'tweets'
@@ -155,25 +159,7 @@ def cmd(config, args):
     node_queue = NodeQueue(nid, redis_config=config['redis_config'])
     node_coordinator = NodeCoordinator(config['redis_config'])
     # this can be done locally without sending the command to the servers...
-    if args.command == 'GET_UIDS_FROM_SCREEN_NAMES':
-        apikeys = config["apikeys"].values()[0]
-        if not os.path.exists(args.json):
-            raise Exception("doesn't exist... ")
-        with open(os.path.abspath(args.json), 'rb') as f, open(os.path.abspath(args.output), 'wb') as o_f:
-            screen_names = json.load(f)
-            twitter_api = TwitterAPI(apikeys=apikeys)
-            user_ids = twitter_api.get_user_ids_by_screen_names(screen_names)
-            json.dump(list(user_ids), o_f)
-    elif args.command == 'GET_USERS_FROM_IDS':
-        apikeys = config["apikeys"].values()[0]
-        if not os.path.exists(args.json):
-            raise Exception("doesn't exist... ")
-        with open(os.path.abspath(args.json), 'rb') as f, open(os.path.abspath(args.output), 'wb') as o_f:
-            user_ids = json.load(f)
-            twitter_api = TwitterAPI(apikeys=apikeys)
-            users = twitter_api.get_users(user_ids)
-            json.dump(list(users), o_f)
-    elif args.command.startswith('BATCH_'):
+    if args.command.startswith('BATCH_'):
         new_command = args.command.replace('BATCH_', '')
         args_dict = copy.copy(args.__dict__)
         if not os.path.exists(args.json):
@@ -218,7 +204,6 @@ def print_avaliable_cmd():
         '-dt/--data_type': '"ids" or "users" (default to ids) what the results are going to look like (either a list of twitter user ids or a list of user objects)',
         '-d/--depth': 'the depth of the network; e.g., if it is 2, it will give you his/her (indicated by the -uid) friends\' friends',
         '-j/--json': 'a json file that contains a list of screen_names or user_ids, depending on the command',
-        '-o/--output': ' the output json file (for storing user_ids from screen_names)',
         '-nid/--node_id': 'the node_id that you want to interact with; default to the current machine...',
         '-q/--query': 'the query to search'
     }
@@ -250,12 +235,6 @@ def print_avaliable_cmd():
         '-j/--json': dictionary['-j/--json']
     }, 'BATCH_CRAWL_USER_TIMELINE': {
         '-j/--json': dictionary['-j/--json']
-    }, 'GET_UIDS_FROM_SCREEN_NAMES': {
-        '-j/--json': dictionary['-j/--json'],
-        '-o/--output': dictionary['-o/--output']
-    }, 'GET_USERS_FROM_IDS': {
-        '-j/--json': dictionary['-j/--json'],
-        '-o/--output': dictionary['-o/--output']
     }, 'LIST_NODES': {
     }, 'SHUTDOWN_NODE': {
         '-nid/--node_id': dictionary['-nid/--node_id']
@@ -291,8 +270,6 @@ if __name__ == "__main__":
     parser.add_argument('-j', '--json',
                         help="the location of the json file that has a list of user_ids or screen_names",
                         required=False)
-    parser.add_argument('-o', '--output', help="the location of the output json file for storing user_ids",
-                        default='user_ids.json')
     parser.add_argument('-nid', '--node_id', help="the node_id you want to interact with", default=nid)
     parser.add_argument('-q', '--query', help="the search query", default=None)
 

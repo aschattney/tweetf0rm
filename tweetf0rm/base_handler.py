@@ -18,7 +18,7 @@ class BaseHandler(object):
         # buckets: defines the sub-structure of the buffer;
         # either ["tweets", "followers", "follower_ids", "friends", "friend_ids", "timelines"]
         self.buffer = dict()
-        self.buckets = ["tweets", "followers", "follower_ids", "friends", "friend_ids", "timelines"]
+        self.buckets = ["tweets", "followers", "follower_ids", "friends", "friend_ids", "timelines", "users", "geos"]
         for bucket in self.buckets:
             self.buffer[bucket] = dict()
         self.futures = []
