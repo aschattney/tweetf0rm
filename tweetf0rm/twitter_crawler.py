@@ -11,16 +11,15 @@ from streaming_api import Streamer
 from utils import node_id
 import copy
 import json
+from __init__ import create_handlers
 
 logger = logging.getLogger(__name__)
 
 
 class TwitterCrawler(CrawlerProcess):
-    def __init__(self, node_id, crawler_id, apikeys, handlers, redis_config, proxies=None):
-        if handlers is None:
-            raise MissingArgs("you need a handler to write the data to...")
+    def __init__(self, node_id, crawler_id, apikeys, handler_configs, redis_config, proxies=None):
 
-        super(TwitterCrawler, self).__init__(node_id, crawler_id, redis_config, handlers)
+        super(TwitterCrawler, self).__init__(node_id, crawler_id, redis_config)
 
         self.apikeys = copy.copy(apikeys)
         self.tasks = {
@@ -45,7 +44,8 @@ class TwitterCrawler(CrawlerProcess):
         self.client_args = {"timeout": 300}
         self.proxies = iter(proxies) if proxies else None
         self.twitter_api = None
-
+        self.handlers = None
+        self.handler_configs = handler_configs
         self.init_twitter_api()
 
     def init_twitter_api(self):  # this will throw StopIteration if all proxies have been tried...
@@ -72,7 +72,9 @@ class TwitterCrawler(CrawlerProcess):
 
     def run(self):
 
-        node_queue = NodeQueue(node_id=node_id(),redis_config=self.redis_config)
+        self.handlers = create_handlers(self.handler_configs, redis_config=self.redis_config)
+
+        node_queue = NodeQueue(node_id=node_id(), redis_config=self.redis_config)
 
         while True:
             # cmd is in json format
@@ -203,9 +205,10 @@ class TwitterCrawler(CrawlerProcess):
                         logger.info(args)
                         streamer.statuses.filter(track=args['query'])
                     except Exception as e:
-                        if str(e).find("IncompleteRead") != -1:
-                            streamer.close()
-                            node_queue.put(cmd)
+                        logger.info(str(e))
+                        #if str(e).find("IncompleteRead") != -1:
+                        streamer.close()
+                        node_queue.put(cmd)
 
                 elif func:
                     try:

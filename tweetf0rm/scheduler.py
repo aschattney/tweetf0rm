@@ -11,7 +11,6 @@ from proxies import proxy_checker
 from utils import full_stack, get_keys_by_min_value
 
 # from handler.inmemory_handler import InMemoryHandler
-from __init__ import create_handlers
 from redis_helper import NodeCoordinator, CrawlerQueue
 from operator import itemgetter
 
@@ -73,10 +72,10 @@ class Scheduler(object):
         if not crawler_proxies:
             crawler_proxies = next(self.proxy_generator) if self.proxy_generator else None
 
-        write_to_handlers = create_handlers(handler_configs, copy.copy(config['redis_config']))
-        logger.info("write_to_handlers in scheduler: " + str(len(write_to_handlers)))
+
+        #logger.info("write_to_handlers in scheduler: " + str(len(write_to_handlers)))
         crawler = TwitterCrawler(node_id, crawler_id, copy.copy(apikeys),
-                                 handlers=write_to_handlers,
+                                 handler_configs=handler_configs,
                                  redis_config=copy.copy(config['redis_config']), proxies=crawler_proxies)
 
         if crawler_id in self.crawlers:

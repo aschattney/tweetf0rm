@@ -9,15 +9,13 @@ logger = logging.getLogger(__name__)
 # MAX_QUEUE_SIZE = 32767
 class CrawlerProcess(Process):
 
-    def __init__(self, node_id, crawler_id, redis_config, handlers):
+    def __init__(self, node_id, crawler_id, redis_config):
         super(CrawlerProcess, self).__init__()
         self.node_id = node_id
         self.crawler_id = crawler_id
         self.redis_config = redis_config
         self.crawler_queue = CrawlerQueue(node_id, crawler_id, redis_config=redis_config)
         self.crawler_queue.clear()
-        self.handlers = handlers
-        logger.debug("number of handlers attached: %d" % (len(handlers)))
 
     def get_crawler_id(self):
         return self.crawler_id

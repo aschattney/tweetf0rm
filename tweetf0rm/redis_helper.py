@@ -118,7 +118,7 @@ class NodeCoordinator(RedisBase):
         qsizes = self.node_qsizes()
 
         cmd = crawler_queue.get(timeout=60)
-        while (cmd):
+        while cmd:
             node_id = get_keys_by_min_value(qsizes)[0]
 
             node = self.get_node(node_id)

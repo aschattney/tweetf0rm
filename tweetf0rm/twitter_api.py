@@ -11,6 +11,7 @@ import json
 import sys
 
 print sys.path
+import time
 from twython import Twython
 from twython.exceptions import TwythonError, TwythonRateLimitError
 from utils import md5
@@ -164,7 +165,7 @@ class TwitterAPI(Twython):
 
     def find_all_friend_ids(self, user_id=None, write_to_handlers=[], cmd_handlers=[], bucket="friend_ids"):
 
-        if (not user_id):
+        if not user_id:
             raise MissingArgs("user_id cannot be None")
 
         retry_cnt = MAX_RETRY_CNT
@@ -190,7 +191,7 @@ class TwitterAPI(Twython):
                 time.sleep(10)
                 logger.debug("exception: %s" % exc)
                 retry_cnt -= 1
-                if (retry_cnt == 0):
+                if retry_cnt == 0:
                     raise MaxRetryReached("max retry reached due to %s" % (exc))
 
         logger.debug("finished find_all_friend_ids for %s..." % (user_id))
@@ -221,8 +222,8 @@ class TwitterAPI(Twython):
                         current_max_id = int(tweet['id'])
 
                 # no new tweets found
-                if (prev_max_id == current_max_id):
-                    break;
+                if prev_max_id == current_max_id:
+                    break
 
                 timeline.extend(tweets)
 
@@ -230,7 +231,7 @@ class TwitterAPI(Twython):
 
                 logger.debug('%d > %d ? %s' % (prev_max_id, current_max_id, bool(prev_max_id > current_max_id)))
 
-                time.sleep(1)
+                #time.sleep(1)
 
             except TwythonRateLimitError:
                 self.rate_limit_error_occured('statuses', '/statuses/user_timeline')
@@ -239,7 +240,7 @@ class TwitterAPI(Twython):
                 logger.debug("exception: %s" % exc)
                 retry_cnt -= 1
                 if retry_cnt == 0:
-                    raise MaxRetryReached("max retry reached due to %s" % (exc))
+                    raise MaxRetryReached("max retry reached due to %s" % exc)
 
         if len(timeline) > 0:
             for tweet in timeline:
@@ -382,6 +383,8 @@ class TwitterAPI(Twython):
 
         retry_cnt = MAX_RETRY_CNT
         result_tweets = []
+        start_time = time.time()
+        amount = 0
         while current_max_id != prev_max_id and retry_cnt > 1:
             try:
                 if current_max_id > 0:
@@ -405,15 +408,15 @@ class TwitterAPI(Twython):
 
                 # logger.info(cnt)
 
-                logger.debug('%d > %d ? %s' % (prev_max_id, current_max_id, bool(prev_max_id > current_max_id)))
+                #logger.debug('%d > %d ? %s' % (prev_max_id, current_max_id, bool(prev_max_id > current_max_id)))
 
-                time.sleep(1)
+                #time.sleep(1)
 
                 if len(result_tweets) > 0:
                     for tweet in result_tweets:
                         for handler in write_to_handlers:
                             dumped_tweet = json.dumps(tweet)
-                            logger.info(dumped_tweet)
+                            #logger.info(dumped_tweet)
                             handler.append(json.dumps(tweet), bucket=bucket, key=key)
 
                         for handler in cmd_handlers:
@@ -421,15 +424,22 @@ class TwitterAPI(Twython):
                             # else:
                             # for handler in write_to_handlers:
                             #   handler.append(json.dumps({}), bucket=bucket, key=key)
+                amount += len(result_tweets)
+                logger.info("Tweets fetched: " + str(amount))
                 result_tweets = []
-                break
+                #break
             except TwythonRateLimitError:
+                elapsed_time = time.time() - start_time
+                print(str(elapsed_time) + " lang=" + str(lang))
                 self.rate_limit_error_occured('search', '/search/tweets')
             except Exception as exc:
+                elapsed_time = time.time() - start_time
+                print(str(elapsed_time) + " lang=" + str(lang))
                 time.sleep(10)
                 logger.info("exception: %s" % exc)
                 retry_cnt -= 1
                 if retry_cnt == 0:
                     raise MaxRetryReached("max retry reached due to %s" % exc)
-
+        elapsed_time = time.time() - start_time
+        print(str(elapsed_time) + " lang=" + str(lang))
         logger.info("[%s] total tweets: %d " % (query, cnt))

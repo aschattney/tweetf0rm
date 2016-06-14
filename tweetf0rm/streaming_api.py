@@ -33,6 +33,7 @@ class Streamer(TwythonStreamer):
         super(Streamer, self).__init__(*args, **kwargs)
 
     def on_success(self, data):
+        #logger.info(data)
         if 'text' in data:
             #self.counter += 1
             #if self.counter % 50 == 0:

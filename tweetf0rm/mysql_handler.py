@@ -60,15 +60,17 @@ def insert_user_if_not_exists(cursor, user):
 
 
 def execute_query(cursor, bucket, json_data):
+
     if bucket == "tweets":
         json_data = modify_json_data(json_data)
         user = json_data['user']
         create_new_command = insert_user_if_not_exists(cursor, user)
         insert_tweet(cursor, json_data)
-        if create_new_command:
-            cmd = {"cmd": "CRAWL_USER", "user_id": user['id'], "bucket": "users"}
-            cmd['cmd_hash'] = hash_cmd(cmd)
-            MySQLHandler.node_queue.put(cmd)
+        #if create_new_command:
+        #    cmd = {"cmd": "CRAWL_USER", "user_id": user['id'], "bucket": "users"}
+        #    cmd['cmd_hash'] = hash_cmd(cmd)
+        #    MySQLHandler.node_queue.put(cmd)
+
     elif bucket == "users":
         if "profile_location" in json_data:
             profile_location = json_data["profile_location"]
@@ -77,12 +79,12 @@ def execute_query(cursor, bucket, json_data):
                 cursor = MySQLHandler.connection.cursor()
                 cursor.execute(update_user_query, [profile_location['id'], json_data['id']])
                 MySQLHandler.connection.commit()
-                if not geo_location_already_exists(cursor, profile_location['id']):
-                    cmd = {"cmd": "CRAWL_GEO", "geo_id": profile_location['id'], "bucket": "geos"}
-                    cmd['cmd_hash'] = hash_cmd(cmd)
-                    MySQLHandler.node_queue.put(cmd)
-    elif bucket == "geos":
+                #if not geo_location_already_exists(cursor, profile_location['id']):
+                #    cmd = {"cmd": "CRAWL_GEO", "geo_id": profile_location['id'], "bucket": "geos"}
+                #    cmd['cmd_hash'] = hash_cmd(cmd)
+                #    MySQLHandler.node_queue.put(cmd)
 
+    elif bucket == "geos":
         json_data['geotagCount'] = 0
         if 'geotagCount' in json_data['attributes']:
             json_data['geotagCount'] = json_data['attributes']['geotagCount']
@@ -114,17 +116,27 @@ def modify_json_data(json_data):
     json_data['user']['created_at'] = json_data['user']['created_at'].strftime('%Y-%m-%d %H:%M:%S +0000')
     json_data['user']['created_at'] = json_data['user']['created_at'].replace(" +0000", "")
 
-    json_data['short_link'] = json_data['entities']['urls'][0]['url'] if len(json_data['entities']['urls']) > 0 else None
-    json_data['long_link'] = json_data['entities']['urls'][0]['expanded_url'] if len(json_data['entities']['urls']) > 0 else None
-    if len(json_data['entities']['urls']) > 0:
-        youtube_video_id = get_youtube_video_id(json_data['short_link'])
-        if youtube_video_id is None:
-            youtube_video_id = get_youtube_video_id(json_data['long_link'])
-        if youtube_video_id is None:
-            youtube_video_id = ""
-        json_data['youtube_video_id'] = youtube_video_id
-    else:
-        json_data['youtube_video_id'] = None
+    short_link = None
+    expanded_link = None
+    youtube_video_id = None
+
+    if 'urls' in json_data['entities']:
+        urls = json_data['entities']['urls']
+
+        if len(urls) > 0:
+            for url_meta_data in urls:
+                short_link = url_meta_data['url']
+                expanded_link = url_meta_data['expanded_url']
+                youtube_video_id = get_youtube_video_id(short_link)
+                if youtube_video_id is None:
+                    youtube_video_id = get_youtube_video_id(expanded_link)
+                if not youtube_video_id == "":
+                    break
+
+    json_data['short_link'] = short_link
+    json_data['long_link'] = expanded_link
+    json_data['youtube_video_id'] = youtube_video_id
+
     return json_data
 
 
@@ -240,7 +252,7 @@ class MySQLHandler(BaseHandler):
                     f = executor.submit(flush_bucket, bucket, items)
                     # send to a different process to operate, clear the buffer
                     self.clear(bucket)
-                    flush_bucket(bucket, items)
+                    #flush_bucket(bucket, items)
                     # self.clear(bucket)
                     self.futures.append(f)
         return True
